@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>INVT-SISTEM - Ferreteria Gaspar</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- QuaggaJS CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+    <!-- SweetAlert2 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+
+<body>
+    <div class="layout">
+        <div class="sidebar">
+            <h2 style="color: var(--accent); text-align: center; margin-bottom: 2rem;">Menu</h2>
+            <a href="{{ url_for('inventory.inventario') }}" class="{% if request.endpoint == 'inventory.inventario' %}active{% endif %}">📊
+                INVENTARIO</a>
+            <a href="{{ url_for('inventory.productos') }}" class="{% if request.endpoint == 'inventory.productos' %}active{% endif %}">📦
+                PRODUCTOS</a>
+            <a href="{{ url_for('sales.ventas') }}" class="{% if request.endpoint == 'sales.ventas' %}active{% endif %}">🕒
+                SALIDA DE PRODUCTOS</a>
+        </div>
+        <div class="main-content">
+            <div class="topbar">
+                <div>
+                    <!-- El título o algo puede ir aquí si se requiere -->
+                </div>
+                <div style="display: flex; align-items: center; justify-content: flex-end; gap: 20px; flex: 1;">
+                    <input type="text" id="global-search" placeholder="Buscar..."
+                        style="padding: 5px 15px; border-radius: 20px; border: none; width: 300px; background: #fff; color: #333;">
+                    <div style="white-space: nowrap;">
+                        👤 {{ session.username }} | <a href="{{ url_for('auth.logout') }}"
+                            style="color: white; text-decoration: none; font-weight: bold;">Salir</a>
+                    </div>
+                </div>
+            </div>
+            <div class="content">
+                {% block content %}{% endblock %}
+            </div>
+        </div>
+    </div>
+    <script>
+        document.getElementById('global-search').addEventListener('input', function (e) {
+            let term = e.target.value.toLowerCase();
+            document.querySelectorAll('tbody tr').forEach(row => {
+                row.style.display = row.innerText.toLowerCase().includes(term) ? '' : 'none';
+            });
+        });
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+
+</html>

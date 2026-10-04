@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Ferreteria Gaspar</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+    <div class="login-container">
+        <div class="login-left"
+            style="display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 3rem;">
+            <h1
+                style="font-weight: 700; font-size: 3rem; margin-bottom: 1rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-transform: uppercase; letter-spacing: 3px;">
+                CASA DE MATERIALES<br><span style="font-size: 2.2rem; font-weight: 300;">Y FERRETERÍA</span><br>"GASPAR"
+            </h1>
+            <p style="font-size: 1.2rem; opacity: 0.9; margin-top: 1rem; max-width: 80%; line-height: 1.6;">Tu hogar
+                empieza aquí.</p>
+        </div>
+        <div class="login-right">
+            <div class="login-card">
+                <h2>INICIO DE SESION</h2>
+                {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                <p
+                    style="color: white; text-align: center; margin-bottom: 15px; font-weight: bold; background: rgba(255,0,0,0.5); padding: 5px; border-radius: 5px;">
+                    {{ messages[0] }}</p>
+                {% endif %}
+                {% endwith %}
+                <form method="POST" action="{{ url_for('auth.login') }}">
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label>Usuario</label>
+                        <input type="text" name="username" placeholder="Ej. Admin" required>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 30px;">
+                        <label>Contraseña</label>
+                        <input type="password" name="password" placeholder="Ej. 123" required>
+                    </div>
+
+                    <div style="text-align: center;">
+                        <button type="submit">Entrar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
