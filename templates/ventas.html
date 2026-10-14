@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>🕒 SALIDA DE PRODUCTOS</h2>
+
+<div
+    style="background: var(--card-bg); padding: 20px; border-radius: 10px; margin-bottom: 20px; border: 1px solid var(--border);">
+    <div style="display: flex; gap: 15px; align-items: flex-end;">
+        <div class="form-group" style="flex: 2; margin: 0;">
+            <label>Código del Producto</label>
+            <input type="text" id="v_codigo" placeholder="Escanea o escribe">
+        </div>
+        <div class="form-group" style="flex: 1; margin: 0;">
+            <label>Cantidad</label>
+            <input type="number" id="v_cantidad" value="1" min="1">
+        </div>
+        <button class="btn btn-blue" onclick="startVentaScan()" style="height: 42px;">📷 Escanear</button>
+        <button class="btn btn-primary" onclick="registrarVenta()" style="height: 42px; flex: 1;">Registrar
+            Venta</button>
+    </div>
+    <div id="v_scanner" class="viewport" style="display:none; margin-top:15px; height: 200px;"></div>
+</div>
+
+<div style="display: flex; justify-content: space-between; align-items: center;">
+    <h3>Historial de Ventas</h3>
+    <div style="display: flex; gap: 10px; align-items: center;">
+        <label>Filtrar por Fecha:</label>
+        <input type="date" id="filtro_fecha" class="form-group"
+            style="margin: 0; padding: 5px; border-radius: 4px; border: 1px solid var(--border); background: #f0f0f0; color: #333;"
+            onchange="filtrarVentas()">
+
+        <label>Mes:</label>
+        <input type="month" id="filtro_mes" class="form-group"
+            style="margin: 0; padding: 5px; border-radius: 4px; border: 1px solid var(--border); background: #f0f0f0; color: #333;"
+            onchange="filtrarVentas()">
+
+        <button class="btn btn-danger" style="background-color: var(--danger); color: white;"
+            onclick="vaciarHistorial()">🗑️ Vaciar Historial</button>
+    </div>
+</div>
+<table id="tablaVentas">
+    <thead>
+        <tr>
+            <th>ID VENTA</th>
+            <th>PRODUCTO</th>
+            <th>CANTIDAD</th>
+            <th>FECHA Y HORA</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for v in ventas %}
+        <tr>
+            <td>{{ v.id }}</td>
+            <td>{{ v.producto.nombre }} ({{ v.producto.codigo }})</td>
+            <td>{{ v.cantidad }}</td>
+            <td>{{ v.fecha.strftime('%Y-%m-%d %H:%M') }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/scanner.js') }}"></script>
+<script>
+    function startVentaScan() {
+        document.getElementById('v_scanner').style.display = 'block';
+        startScanner((code) => {
+            document.getElementById('v_codigo').value = code;
+            document.getElementById('v_scanner').style.display = 'none';
+            stopScanner();
+        }, '#v_scanner');
+    }
+
+    function registrarVenta() {
+        let data = {
+            codigo: document.getElementById('v_codigo').value,
+            cantidad: document.getElementById('v_cantidad').value
+        };
+        if (!data.codigo || !data.cantidad) return alert("Completa los campos");
+
+        fetch('/api/ventas', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        }).then(res => res.json()).then(res => {
+            if (res.status === 'ok') {
+                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Venta registrada', showConfirmButton: false, timer: 1500 })
+                    .then(() => location.reload());
+            } else {
+                Swal.fire('Error', res.msg, 'error');
+            }
+        });
+    }
+
+    function filtrarVentas() {
+        let fecha = document.getElementById('filtro_fecha').value; // YYYY-MM-DD
+        let mes = document.getElementById('filtro_mes').value; // YYYY-MM
+
+        document.querySelectorAll('#tablaVentas tbody tr').forEach(row => {
+            let rowDate = row.cells[3].innerText.substring(0, 10); // YYYY-MM-DD
+            let rowMonth = row.cells[3].innerText.substring(0, 7); // YYYY-MM
+
+            let show = true;
+            if (fecha && rowDate !== fecha) show = false;
+            if (mes && rowMonth !== mes) show = false;
+
+            row.style.display = show ? '' : 'none';
+        });
+    }
+
+    function vaciarHistorial() {
+        Swal.fire({
+            title: '¿Vaciar historial?',
+            text: "Se eliminarán todas las ventas registradas",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#e74c3c',
+            cancelButtonColor: '#34495e',
+            confirmButtonText: 'Sí, vaciar',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                fetch('/api/ventas', { method: 'DELETE' })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.status === 'ok') {
+                            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Historial eliminado', showConfirmButton: false, timer: 1500 })
+                                .then(() => location.reload());
+                        }
+                    });
+            }
+        });
+    }
+</script>
+{% endblock %}

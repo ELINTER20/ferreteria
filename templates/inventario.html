@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>📊 INVENTARIO</h2>
+<div class="cards">
+    <div class="card">
+        <h3>Total Productos</h3>
+        <p>{{ total_prod }}</p>
+    </div>
+    <div class="card">
+        <h3>Stock Bajo</h3>
+        <p style="color: var(--warning)">{{ stock_bajo }}</p>
+    </div>
+    <div class="card">
+        <h3>Sin Stock</h3>
+        <p style="color: var(--danger)">{{ sin_stock }}</p>
+    </div>
+    <div class="card">
+        <h3>Categorias</h3>
+        <p style="color: #3498db">{{ categorias }}</p>
+    </div>
+</div>
+
+<div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+    <div class="pills">
+        <span class="pill active">Todas</span>
+        <span class="pill">Herramientas</span>
+        <span class="pill">Construccion</span>
+        <span class="pill">Plomeria</span>
+        <span class="pill">Electrico</span>
+    </div>
+    <div>
+        <button class="btn btn-blue" onclick="sortTable(1)">A-Z</button>
+        <button class="btn btn-primary" onclick="sortTable(6)">Por Stock</button>
+        <button class="btn" style="background: #333;" onclick="sortTable(2)">Por Categoria</button>
+    </div>
+</div>
+
+<table id="invTable">
+    <thead>
+        <tr>
+            <th>CODIGO</th>
+            <th>NOMBRE</th>
+            <th>CATEGORIA</th>
+            <th>DESCRIPCION</th>
+            <th>MEDIDAS</th>
+            <th>STOCK</th>
+            <th>ESTADO</th>
+            <th>ACCIONES</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for p in productos %}
+        <tr>
+            <td>{{ p.codigo }}</td>
+            <td>{{ p.nombre }}</td>
+            <td><span class="badge info">{{ p.categoria }}</span></td>
+            <td>{{ p.descripcion }}</td>
+            <td>{{ p.medidas }}</td>
+            <td>
+                {{ p.stock }} / {{ p.stock_maximo }}
+                <div class="progress-container">
+                    {% set pct = (p.stock / p.stock_maximo * 100) if p.stock_maximo > 0 else 0 %}
+                    {% set bg = 'var(--success)' %}
+                    {% if p.stock == 0 %} {% set bg = 'var(--danger)' %}
+                    {% elif p.stock < (p.stock_maximo * 0.2) %} {% set bg = 'var(--warning)' %}
+                    {% endif %}
+                    <div class="progress-bar" style="width: {{ pct }}%; background: {{ bg }};"></div>
+                </div>
+            </td>
+            <td>
+                {% if p.stock == 0 %}
+                    <span class="badge danger">Agotado</span>
+                {% elif p.stock < (p.stock_maximo * 0.2) %}
+                    <span class="badge warning">Bajo</span>
+                {% else %}
+                    <span class="badge ok">OK</span>
+                {% endif %}
+            </td>
+            <td>
+                <a href="{{ url_for('inventory.productos') }}#editar-{{ p.id }}" class="btn" style="background: var(--warning); padding: 5px; text-decoration: none;">✏️</a>
+                <button class="btn" style="background: var(--danger); padding: 5px;" onclick="eliminarProductoInv('{{ p.id }}')">🗑️</button>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function sortTable(n) {
+  var table, rows, switching, i, x, y, shouldSwitch, dir, switchcount = 0;
+  table = document.getElementById("invTable");
+  switching = true;
+  dir = "asc"; 
+  while (switching) {
+    switching = false;
+    rows = table.rows;
+    for (i = 1; i < (rows.length - 1); i++) {
+      shouldSwitch = false;
+      x = rows[i].getElementsByTagName("TD")[n];
+      y = rows[i + 1].getElementsByTagName("TD")[n];
+      let valX = x.innerHTML.toLowerCase();
+      let valY = y.innerHTML.toLowerCase();
+      
+      if (n === 5) { 
+        valX = parseFloat(x.innerText.replace(/[^0-9.-]+/g,""));
+        valY = parseFloat(y.innerText.replace(/[^0-9.-]+/g,""));
+      }
+
+      if (dir == "asc") {
+        if (valX > valY) { shouldSwitch = true; break; }
+      } else if (dir == "desc") {
+        if (valX < valY) { shouldSwitch = true; break; }
+      }
+    }
+    if (shouldSwitch) {
+      rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+      switching = true;
+      switchcount ++;
+    } else {
+      if (switchcount == 0 && dir == "asc") {
+        dir = "desc";
+        switching = true;
+      }
+    }
+  }
+}
+
+document.querySelectorAll('.pill').forEach(pill => {
+    pill.addEventListener('click', function() {
+        document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+        this.classList.add('active');
+        let cat = this.innerText.toLowerCase();
+        document.querySelectorAll('#invTable tbody tr').forEach(row => {
+            if(cat === 'todas') {
+                row.style.display = '';
+            } else {
+                let rowCat = row.cells[2].innerText.toLowerCase();
+                row.style.display = rowCat.includes(cat) ? '' : 'none';
+            }
+        });
+    });
+});
+
+function eliminarProductoInv(id) {
+    Swal.fire({
+        title: '¿Estás seguro?',
+        text: "¡No podrás revertir esto!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#e74c3c',
+        cancelButtonColor: '#34495e',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch('/api/productos/' + id, { method: 'DELETE' })
+            .then(res => res.json())
+            .then(data => {
+                if(data.status === 'ok') {
+                    Swal.fire({
+                        toast: true, position: 'top-end', icon: 'success', title: 'Producto eliminado', showConfirmButton: false, timer: 1500
+                    }).then(() => location.reload());
+                }
+            });
+        }
+    });
+}
+</script>
+{% endblock %}

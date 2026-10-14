@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>📦 GESTIÓN DE PRODUCTOS</h2>
+
+<div class="pills" style="margin-bottom: 20px;">
+    <span class="pill active" id="tab-agregar" onclick="showTab('agregar')">Agregar</span>
+    <span class="pill" id="tab-editar" onclick="showTab('editar')">Editar</span>
+    <span class="pill" id="tab-eliminar" onclick="showTab('eliminar')">Eliminar</span>
+</div>
+
+<div id="panel-agregar">
+    <div style="margin-bottom: 20px;">
+        <button class="btn btn-blue" onclick="toggleScanner('manual')">Modo Manual</button>
+        <button class="btn btn-primary" onclick="toggleScanner('escaner')">Modo Escáner</button>
+    </div>
+
+    <div id="scanner-container" style="display: none; margin-bottom: 20px;">
+        <div id="interactive" class="viewport"></div>
+        <button class="btn btn-danger" onclick="stopScanUI()" style="margin-top: 10px;">Detener Cámara</button>
+    </div>
+
+    <form id="form-agregar" onsubmit="submitProducto(event, 'POST', '/api/productos')">
+        <div class="cards" style="grid-template-columns: 1fr 1fr;">
+            <div class="form-group">
+                <label>Código</label>
+                <input type="text" id="codigo" required>
+            </div>
+            <div class="form-group">
+                <label>Nombre</label>
+                <input type="text" id="nombre" required>
+            </div>
+            <div class="form-group">
+                <label>Categoría</label>
+                <select id="categoria" onchange="toggleNuevaCategoria('categoria', 'nueva_categoria')" required>
+                    <option value="">-- Seleccionar --</option>
+                    {% for cat in categorias %}
+                    <option value="{{ cat }}">{{ cat }}</option>
+                    {% endfor %}
+                    <option value="Otra">Otra...</option>
+                </select>
+                <input type="text" id="nueva_categoria" placeholder="Escribe la nueva categoría"
+                    style="display: none; margin-top: 10px;">
+            </div>
+            <div class="form-group">
+                <label>Cantidad (Stock actual)</label>
+                <input type="number" id="stock" required>
+            </div>
+            <div class="form-group">
+                <label>Stock Máximo</label>
+                <input type="number" id="stock_maximo" value="100" required>
+            </div>
+            <div class="form-group" style="display: none;">
+                <label>Precio Unitario</label>
+                <input type="number" step="0.01" id="precio" value="0">
+            </div>
+            <div class="form-group">
+                <label>Medidas</label>
+                <input type="text" id="medidas">
+            </div>
+            <div class="form-group">
+                <label>Descripción</label>
+                <input type="text" id="descripcion">
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; font-size: 1.2rem; padding: 15px;">Guardar
+            Producto</button>
+    </form>
+</div>
+
+<div id="panel-editar" style="display: none; grid-template-columns: 1fr 1fr; gap: 20px;">
+    <div>
+        <h3>Selecciona un producto</h3>
+        <select id="select-editar" class="form-group" style="width: 100%; padding: 10px;"
+            onchange="loadProductoData(this.value)">
+            <option value="">-- Seleccionar --</option>
+            {% for p in productos %}
+            <option value="{{ p.id }}"
+                data-json='{{ {"codigo":p.codigo,"nombre":p.nombre,"categoria":p.categoria,"stock":p.stock,"stock_maximo":p.stock_maximo,"precio":p.precio,"medidas":p.medidas,"descripcion":p.descripcion}|tojson }}'>
+                {{ p.codigo }} - {{ p.nombre }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div>
+        <form id="form-editar"
+            onsubmit="submitProducto(event, 'PUT', '/api/productos/' + document.getElementById('select-editar').value)">
+            <div class="form-group"><label>Código</label><input type="text" id="edit_codigo" required></div>
+            <div class="form-group"><label>Nombre</label><input type="text" id="edit_nombre" required></div>
+            <div class="form-group">
+                <label>Categoría</label>
+                <select id="edit_categoria" onchange="toggleNuevaCategoria('edit_categoria', 'edit_nueva_categoria')"
+                    required>
+                    <option value="">-- Seleccionar --</option>
+                    {% for cat in categorias %}
+                    <option value="{{ cat }}">{{ cat }}</option>
+                    {% endfor %}
+                    <option value="Otra">Otra...</option>
+                </select>
+                <input type="text" id="edit_nueva_categoria" placeholder="Escribe la nueva categoría"
+                    style="display: none; margin-top: 10px;">
+            </div>
+            <div class="form-group"><label>Stock</label><input type="number" id="edit_stock" required></div>
+            <div class="form-group"><label>Stock Max</label><input type="number" id="edit_stock_maximo" required></div>
+            <div class="form-group" style="display:none;"><label>Precio</label><input type="number" step="0.01"
+                    id="edit_precio" value="0"></div>
+            <button type="submit" class="btn btn-warning" style="width: 100%;">Actualizar Producto</button>
+        </form>
+    </div>
+</div>
+
+<div id="panel-eliminar" style="display: none;">
+    <div
+        style="max-width: 500px; margin: 0 auto; border: 2px solid var(--danger); padding: 20px; border-radius: 10px; background: #222;">
+        <h3 style="color: var(--danger); text-align: center;">Eliminar Producto</h3>
+        <select id="select-eliminar" class="form-group" style="width: 100%; padding: 10px; margin-bottom: 20px;">
+            <option value="">-- Seleccionar Producto --</option>
+            {% for p in productos %}
+            <option value="{{ p.id }}">{{ p.codigo }} - {{ p.nombre }}</option>
+            {% endfor %}
+        </select>
+        <button class="btn btn-danger" style="width: 100%; background: var(--danger);"
+            onclick="eliminarProducto()">Confirmar Eliminación</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/scanner.js') }}"></script>
+<script>
+    function showTab(tab) {
+        document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+        document.getElementById('tab-' + tab).classList.add('active');
+
+        document.getElementById('panel-agregar').style.display = 'none';
+        document.getElementById('panel-editar').style.display = 'none';
+        document.getElementById('panel-eliminar').style.display = 'none';
+
+        if (tab === 'editar') { document.getElementById('panel-editar').style.display = 'grid'; }
+        else { document.getElementById('panel-' + tab).style.display = 'block'; }
+    }
+
+    function toggleScanner(mode) {
+        if (mode === 'escaner') {
+            document.getElementById('scanner-container').style.display = 'block';
+            startScanner((code) => {
+                document.getElementById('codigo').value = code;
+                document.getElementById('scanner-container').style.display = 'none';
+            });
+        } else {
+            document.getElementById('scanner-container').style.display = 'none';
+            stopScanner();
+        }
+    }
+    function stopScanUI() {
+        stopScanner();
+        document.getElementById('scanner-container').style.display = 'none';
+    }
+
+    function submitProducto(e, method, url) {
+        e.preventDefault();
+        let prefix = method === 'PUT' ? 'edit_' : '';
+        let cat_select = document.getElementById(prefix + 'categoria').value;
+        let final_cat = cat_select === 'Otra' ? document.getElementById(prefix + 'nueva_categoria').value : cat_select;
+
+        let data = {
+            codigo: document.getElementById(prefix + 'codigo').value,
+            nombre: document.getElementById(prefix + 'nombre').value,
+            categoria: final_cat,
+            stock: document.getElementById(prefix + 'stock').value,
+            stock_maximo: document.getElementById(prefix + 'stock_maximo').value,
+            precio: document.getElementById(prefix + 'precio') ? document.getElementById(prefix + 'precio').value : '0',
+            medidas: document.getElementById(prefix + 'medidas') ? document.getElementById(prefix + 'medidas').value : '',
+            descripcion: document.getElementById(prefix + 'descripcion') ? document.getElementById(prefix + 'descripcion').value : ''
+        };
+
+        fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        }).then(res => res.json()).then(data => {
+            if (data.status === 'ok') {
+                Swal.fire({
+                    toast: true, position: 'top-end', icon: 'success',
+                    title: method === 'POST' ? 'Producto guardado' : 'Producto actualizado',
+                    showConfirmButton: false, timer: 1500
+                }).then(() => location.reload());
+            }
+        });
+    }
+
+    function loadProductoData(id) {
+        if (!id) return;
+        let sel = document.getElementById('select-editar');
+        let data = JSON.parse(sel.options[sel.selectedIndex].getAttribute('data-json'));
+        document.getElementById('edit_codigo').value = data.codigo;
+        document.getElementById('edit_nombre').value = data.nombre;
+
+        let catSelect = document.getElementById('edit_categoria');
+        let isExistingCat = Array.from(catSelect.options).some(opt => opt.value === data.categoria);
+        if (isExistingCat) {
+            catSelect.value = data.categoria;
+            document.getElementById('edit_nueva_categoria').style.display = 'none';
+        } else {
+            catSelect.value = 'Otra';
+            document.getElementById('edit_nueva_categoria').style.display = 'block';
+            document.getElementById('edit_nueva_categoria').value = data.categoria;
+        }
+
+        document.getElementById('edit_stock').value = data.stock;
+        document.getElementById('edit_stock_maximo').value = data.stock_maximo;
+        document.getElementById('edit_precio').value = data.precio;
+    }
+
+    function eliminarProducto() {
+        let id = document.getElementById('select-eliminar').value;
+        if (!id) return Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: 'Selecciona un producto', showConfirmButton: false, timer: 1500 });
+        Swal.fire({
+            title: '¿Estás seguro?', text: "¡No podrás revertir esto!", icon: 'warning',
+            showCancelButton: true, confirmButtonColor: '#e74c3c', cancelButtonColor: '#34495e',
+            confirmButtonText: 'Sí, eliminar', cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                fetch('/api/productos/' + id, { method: 'DELETE' })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.status === 'ok') {
+                            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Articulo eliminado', showConfirmButton: false, timer: 1500 })
+                                .then(() => location.reload());
+                        }
+                    });
+            }
+        });
+    }
+
+    function toggleNuevaCategoria(selectId, inputId) {
+        let select = document.getElementById(selectId);
+        let input = document.getElementById(inputId);
+        if (select.value === 'Otra') {
+            input.style.display = 'block';
+            input.required = true;
+        } else {
+            input.style.display = 'none';
+            input.required = false;
+            input.value = '';
+        }
+    }
+
+    // Auto select edit from inventory
+    window.addEventListener('DOMContentLoaded', () => {
+        let hash = window.location.hash;
+        if (hash && hash.startsWith('#editar-')) {
+            let id = hash.split('-')[1];
+            showTab('editar');
+            let sel = document.getElementById('select-editar');
+            sel.value = id;
+            loadProductoData(id);
+        }
+    });
+</script>
+{% endblock %}
