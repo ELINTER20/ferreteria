@@ -1,0 +1,59 @@
+
+services:
+  db:
+    image: mysql:8.4
+    container_name: ferreteria-db
+    restart: unless-stopped
+
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Define MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+
+    volumes:
+      - ferreteria_mysql_data:/var/lib/mysql
+      - ./backups/ferreteria_backup.sql.gz:/docker-entrypoint-initdb.d/001-ferreteria.sql.gz:ro
+
+    networks:
+      - ferreteria_network
+
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - mysqladmin ping -h 127.0.0.1 -uroot -p"$${MYSQL_ROOT_PASSWORD}" --silent
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: ferreteria-web
+    restart: unless-stopped
+
+    env_file:
+      - .env
+
+    environment:
+      DATABASE_URL: "mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE}?charset=utf8mb4"
+
+    ports:
+      - "127.0.0.1:5001:5000"
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    networks:
+      - ferreteria_network
+
+volumes:
+  ferreteria_mysql_data:
+
+networks:
+  ferreteria_network:
+    driver: bridge

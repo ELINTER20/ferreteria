@@ -1,0 +1,17 @@
+[Unit]
+Description=Ferreteria Gaspar Flask Application
+After=network.target mysql.service
+
+[Service]
+Type=simple
+User=ferreteria
+Group=ferreteria
+WorkingDirectory=/opt/ferreteria
+EnvironmentFile=/opt/ferreteria/.env
+Environment="PATH=/opt/ferreteria/.venv/bin"
+ExecStart=/opt/ferreteria/.venv/bin/gunicorn --workers 2 --bind 127.0.0.1:5000 run:app
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
